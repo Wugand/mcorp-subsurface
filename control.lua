@@ -32,6 +32,7 @@ function setup_globals()
 	global.selection_indicators = global.selection_indicators or {}
 	global.next_burrowing = global.next_burrowing or game.map_settings.enemy_expansion.max_expansion_cooldown
 	if not global.enemies_above_exposed_underground then init_enemies_global() end
+	global.aai_miners = global.aai_miners or {}
 end
 
 script.on_init(function()
@@ -308,12 +309,14 @@ script.on_event({defines.events.on_built_entity, defines.events.on_robot_built_e
 	elseif entity.name == "wooden-support" then
 		script.register_on_entity_destroyed(entity)
 		global.support_lamps[entity.unit_number] = entity.surface.create_entity{name="support-lamp", position=entity.position}
-	elseif is_subsurface(entity.surface)
-	and (entity.type == "electric-pole"
-	or entity.type == "rocket-silo"
-	or entity.name == "rsc-silo-stage1" or entity.name == "rsc-silo-stage1-sesprs" or entity.name == "rsc-silo-stage1-serlp"
-	or entity.type == "artillery-turret" or entity.type == "artillery-wagon")
-	then cancel_placement(entity, event.player_index) -- prevent some entities from being placed in subsurfaces
+	elseif is_subsurface(entity.surface) then
+		if remote.interfaces["aai-programmable-vehicles"] then
+			check_miner_placed(entity)
+		end
+
+		if entity.type == "electric-pole" or entity.type == "rocket-silo" or entity.name == "rsc-silo-stage1" or entity.name == "rsc-silo-stage1-sesprs" or entity.name == "rsc-silo-stage1-serlp" or entity.type == "artillery-turret" or entity.type == "artillery-wagon" then
+			cancel_placement(entity, event.player_index) -- prevent some entities from being placed in subsurfaces
+		end
 	end
 end)
 
@@ -472,6 +475,8 @@ script.on_event(defines.events.on_entity_destroyed, function(event)
 		global.air_vent_lights[event.registration_number] = nil
 	elseif global.support_lamps[event.unit_number] then
 		global.support_lamps[event.unit_number].destroy()
+	elseif global.aai_miners[event.unit_number] then
+		global.aai_miners[event.unit_number] = nil
  	end
 end)
 
