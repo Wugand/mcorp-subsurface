@@ -25,7 +25,6 @@ function setup_globals()
 	global.air_vents = global.air_vents or {}
 	global.air_vent_lights = global.air_vent_lights or {}
 	global.exposed_chunks = global.exposed_chunks or {} -- [surface][x][y], 1 means chunk is exposed, 0 means chunk is next to an exposed chunk
-	global.aai_miner_paths = global.aai_miner_paths or {}
 	global.prospectors = global.prospectors or {}
 	global.support_lamps = global.support_lamps or {}
 	global.placement_indicators = global.placement_indicators or {}
@@ -351,7 +350,6 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
 		rendering.destroy(r)
 	end
 	
-	aai_cursor_stack_changed(player)
 	elevator_on_cursor_stack_changed(player)
 end)
 
@@ -373,7 +371,6 @@ script.on_event(defines.events.on_player_changed_surface, function(event)
 		rendering.destroy(r)
 	end
 	
-	aai_cursor_stack_changed(player)
 	elevator_on_cursor_stack_changed(player)
 end)
 
