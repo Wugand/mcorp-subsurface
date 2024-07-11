@@ -21,9 +21,39 @@ data:extend({
 	minimum_value = 1
   },
   {
-	type = "bool-setting",
+	type = "double-setting",
 	setting_type = "runtime-global",
-	name = "disable-autoplace-manipulation",
-	default_value = false
+	name = "resource-richness-factor",
+	default_value = 1.25
   },
+  {
+	type = "double-setting",
+	setting_type = "runtime-global",
+	name = "resource-richness-offset",
+	default_value = 0.8
+  },
+  {
+	type = "double-setting",
+	setting_type = "runtime-global",
+	name = "resource-size-factor",
+	default_value = 1.25
+  },
+  {
+	type = "double-setting",
+	setting_type = "runtime-global",
+	name = "resource-size-offset",
+	default_value = 0.75
+  },
+  {
+	type = "double-setting",
+	setting_type = "runtime-global",
+	name = "resource-frequency-factor",
+	default_value = 0.95
+  },
+  {
+	type = "double-setting",
+	setting_type = "runtime-global",
+	name = "resource-frequency-offset",
+	default_value = 2.5
+  }
 })

@@ -7,6 +7,7 @@ require "scripts.aai-miners"
 require "scripts.resources"
 require "scripts.elevators"
 require "scripts.enemies"
+require "scripts.mapgen"
 
 max_pollution_move_active = 128 -- the max amount of pollution that can be moved per 64 ticks from one surface to the above
 max_pollution_move_passive = 64
@@ -39,8 +40,7 @@ script.on_init(function()
 	if not game.tile_prototypes["caveground"] then
 		game.print("[color=yellow]Subsurface:[/color] Due to that large amount of mods and the tile limit of 256 it was not possible to load stony ground tiles. Subsurfaces will work but won't look like intended.")
 	end
-	for _,s in pairs(game.surfaces) do manipulate_autoplace_controls(s) end
-	
+
 	if remote.interfaces["space-exploration"] then
 		script.on_event("se-remote-view", function(event)
 			on_remote_view_started(game.get_player(event.player_index))
@@ -88,60 +88,7 @@ function get_subsurface(surface, create)
 	if global.subsurfaces[surface.index] then -- the subsurface already exists
 		return global.subsurfaces[surface.index]
 	elseif create then -- we need to create the subsurface (pattern : <surface>_subsurface_<number>
-		local subsurface_name = ""
-		local _, _, topname, depth = string.find(surface.name, "(.+)_subsurface_([0-9]+)$")
-		if topname == nil then -- surface is not a subsurface
-			topname = surface.name
-			depth = 1
-		else
-			depth = tonumber(depth) + 1
-		end
-		subsurface_name = topname .. "_subsurface_" .. depth
-		
-		local subsurface = game.get_surface(subsurface_name)
-		if not subsurface then
-			
-			local mgs = {
-				seed = surface.map_gen_settings.seed,
-				width = surface.map_gen_settings.width,
-				height = surface.map_gen_settings.height,
-				peaceful_mode = surface.map_gen_settings.peaceful_mode,
-				autoplace_controls = make_autoplace_controls(topname, depth),
-				autoplace_settings = {
-				  decorative = {treat_missing_as_default = false, settings = {
-					["rock-small"] = {},
-					["rock-tiny"] = {}
-				  }},
-				  tile = {treat_missing_as_default = false, settings = {
-					["caveground"] = {},
-					["mineral-brown-dirt-2"] = {},
-					["grass-4"] = {},
-					["out-of-map"] = {},
-				  }},
-				},
-				property_expression_names = { -- priority is from top to bottom
-					["tile:caveground:probability"] = 0, -- basic floor
-					["tile:mineral-brown-dirt-2:probability"] = 0, -- alternative if alienbiomes is active
-					["tile:grass-4:probability"] = 0, -- 2nd alternative
-					["decorative:rock-small:probability"] = 0.1,
-					["decorative:rock-tiny:probability"] = 0.7,
-				}
-			}
-			
-			subsurface = game.create_surface(subsurface_name, mgs)
-			
-			subsurface.daytime = 0.5
-			subsurface.freeze_daytime = true
-			subsurface.show_clouds = false
-			
-			if remote.interfaces["blackmap"] then remote.call("blackmap", "register", subsurface) end
-			
-			global.enemies_above_exposed_underground[surface.index] = {}
-			
-		end
-		global.subsurfaces[surface.index] = subsurface
-		global.exposed_chunks[subsurface.index] = global.exposed_chunks[subsurface.index] or {}
-		return subsurface
+		return make_subsurface(surface)
 	else return nil
 	end
 end
@@ -189,15 +136,20 @@ function clear_subsurface(surface, pos, radius, clearing_radius)
 	end
 	
 	for x, y in iarea(area) do -- first, replace all out-of-map tiles with their hidden tile (which means that it is inside map limits)
-		if (x-pos.x)^2 + (y-pos.y)^2 < radius^2 and surface.get_hidden_tile({x, y}) then
+		if (x-pos.x)^2 + (y-pos.y)^2 < radius^2 and surface.get_hidden_tile({x, y}) and surface.get_tile(x, y).name == "out-of-map" then
 			local wall = surface.find_entity("subsurface-wall", {x, y})
 			if wall then
 				wall.destroy()
 				walls_destroyed = walls_destroyed + 1
 			end
-			table.insert(new_tiles, {name = surface.get_hidden_tile({x, y}), position = {x, y}})
-			table.insert(new_resource_positions, {x, y})
+
+			tilename = get_tile_replacement(surface.get_hidden_tile({x, y}))
+			table.insert(new_tiles, {name = tilename, position = {x, y}})
+			if not is_water_tile(tilename) then
+				table.insert(new_resource_positions, {x, y})
+			end
 			surface.set_hidden_tile({x, y}, nil)
+			
 		end
 	end
 	surface.set_tiles(new_tiles)
@@ -239,7 +191,7 @@ script.on_event(defines.events.on_tick, function(event)
 	-- handle miners
 	if remote.interfaces["aai-programmable-vehicles"] and event.tick % 10 == 0 then handle_miners(event.tick) end
 	
-	if event.tick % 20 == 0 and not settings.global["disable-autoplace-manipulation"].value and game.map_settings.enemy_expansion.enabled then handle_enemies(event.tick) end
+	if event.tick % 20 == 0 and game.map_settings.enemy_expansion.enabled then handle_enemies(event.tick) end
 end)
 
 function cancel_placement(entity, player_index, text)
